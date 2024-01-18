@@ -1,4 +1,5 @@
 import pytest
+import json
 from students.models import Course, Student
 from rest_framework.test import APIClient
 from model_bakery import baker
@@ -24,34 +25,25 @@ def student_factory():
 
 
 @pytest.mark.django_db
-def test_firt_course(client, course_factory):
+def test_one_course(client, course_factory):
     # Arrange
-    courses = course_factory(_quantity=10)
-    id = courses[5].id
-    base_url = 'http://127.0.0.1:8000/'
-    url = base_url + '/api/v1/courses/' + str(id)
-    headers = {
-        'Content-Type': 'application/json',
-    }
-    # Act
-    response = client.get(url, headers=headers)
-    r_data = response.json()
+    courses = course_factory(_quantity=1)
+    id = courses[0].id
+    url = f'/api/v1/courses/{id}/'
+    response = client.get(url, format='json')
+    data = response.json()
     # Assert
     assert response.status_code == 200
-    assert r_data['id'] == Course.objects.get(pk=id)
+    assert data['name'] == courses[0].name
     
 
 @pytest.mark.django_db
 def test_list_courses(client, course_factory):
     # Arrange
-    courses = course_factory(_quantity=10)
-    base_url = 'http://127.0.0.1:8000/'
-    url = base_url + '/api/v1/courses'
-    headers = {
-        'Content-Type': 'application/json',
-    }
+    courses = course_factory(_quantity=3)
+    url = '/api/v1/courses/'
     # Act
-    response = client.get(url, headers=headers)
+    response = client.get(url, format='json')
     data = response.json()
     # Assert
     assert response.status_code == 200
@@ -61,54 +53,36 @@ def test_list_courses(client, course_factory):
 @pytest.mark.django_db
 def test_courses_filter_id(client, course_factory):
     # Arrange
-    courses = course_factory(_quantity=10)
-    base_url = 'http://127.0.0.1:8000/'
-    url = base_url + '/api/v1/courses'
-    params = {
-        'id': courses[5].id,
-    }
-    headers = {
-        'Content-Type': 'application/json',
-    }
+    courses = course_factory(_quantity=3)
+    url = '/api/v1/courses/'
     # Act
-    response = client.get(url, params=params, headers=headers)
+    response = client.get(url, {'id': courses[1].id}, format='json')
     data = response.json()
     # Assert
     assert response.status_code == 200
-    assert data['id'] == Course.objects.filter(id=params['id'])
+    assert data[0]['id'] == courses[1].id
 
 
 @pytest.mark.django_db
 def test_courses_filter_name(client, course_factory):
     # Arrange
-    courses = course_factory(_quantity=10)
-    base_url = 'http://127.0.0.1:8000/'
-    url = base_url + '/api/v1/courses'
-    params = {
-        'name': courses[5].name,
-    }
-    headers = {
-        'Content-Type': 'application/json',
-    }
+    courses = course_factory(_quantity=3)
+    url = '/api/v1/courses/'
     # Act
-    response = client.get(url, params=params, headers=headers)
+    response = client.get(url, {'name': courses[1].name}, format='json')
     data = response.json()
     # Assert
     assert response.status_code == 200
-    assert data['name'] == Course.objects.filter(name=params['name'])
+    assert data[0]['name'] == courses[1].name
 
 
 @pytest.mark.django_db
 def test_course_create(client):
     # Arrange
-    base_url = 'http://127.0.0.1:8000/'
-    url = base_url + '/api/v1/courses'
-    headers = {
-        'Content-Type': 'application/json',
-    }
+    url = '/api/v1/courses/'
     count = Course.objects.count()
     # Act
-    response = client.post(url, data={'id': 1, 'name': 'Python'}, headers=headers)  # формат указал в настройках
+    response = client.post(url, data={'id': 1, 'name': 'Python'}, format='json')  # формат указал в настройках
     # Assert
     assert response.status_code == 201
     assert Course.objects.count() == count + 1
@@ -119,13 +93,9 @@ def test_course_update(client, course_factory):
     # Arrange
     courses = course_factory(_quantity=3)
     id = courses[0].id
-    base_url = 'http://127.0.0.1:8000/'
-    url = base_url + '/api/v1/courses' + str(id)
-    headers = {
-        'Content-Type': 'application/json',
-    }
+    url = f'/api/v1/courses/{id}/'
     # Act
-    response = client.patch(url, data={'name': 'Python'}, many=False, partial=True, headers=headers)
+    response = client.patch(url, data={'name': 'Python'}, many=False, partial=True, format='json')
     # Assert
     assert response.status_code == 200
 
@@ -135,16 +105,10 @@ def test_course_delete(client, course_factory):
     # Arrange
     courses = course_factory(_quantity=3)
     id = courses[0].id
-    base_url = 'http://127.0.0.1:8000/'
-    url = base_url + '/api/v1/courses' + str(id)
-    headers = {
-        'Content-Type': 'application/json',
-    }
-    id_list = []
-    for course in courses:
-        id_list.append(course.id)
+    url = f'/api/v1/courses/{id}/'
     # Act
-    response = client.delete(url, headers=headers)
+    response_1 = client.delete(url, format='json')
+    response_2 = client.get(url, format='json')
     # Assert
-    assert response.status_code == 204
-    assert id not in id_list
+    assert response_1.status_code == 204
+    assert response_2.status_code == 404
